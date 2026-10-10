@@ -11,7 +11,9 @@
 - [x] PasarelaSimulada
 - [ ] Servicios (`listar_menu`, `crear_cliente`, `cotizar`, `crear_pedido`, `pagar_pedido`, `avanzar_estado`)
 - [ ] DAOs sobre sqlite3
+- [ ] `obtener_cliente` y `listar_pedidos` en PedidoService
 
 ## Persona B (api + presentation)
+- [x] api/: GET /api/productos con servicio falso
 - [ ] API (`http.server`)
 - [ ] Presentation (Node + HTML/JS)

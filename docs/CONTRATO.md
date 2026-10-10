@@ -104,6 +104,8 @@ class PedidoDAO(ABC):
 - `obtener_cliente(cliente_id) -> Optional[Cliente]`: alimenta `GET /api/clientes/{id}`.
 - `listar_pedidos(cliente_id) -> list[Pedido]`: alimenta `GET /api/pedidos?cliente_id=` (usa `PedidoDAO.listar_por_cliente`).
 
+`PedidoService` devuelve **entidades**, nunca JSON. La capa `api` es la que convierte a JSON, incluidos `Enum` (-> `.value`) y `datetime` (-> `isoformat()`).
+
 ## Endpoints (api)
 
 | Método | Ruta | Servicio |
