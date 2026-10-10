@@ -1,5 +1,5 @@
 from negocio.entidades import Producto
-from negocio.interfaces import ProductoDAO
+from negocio.daos import ProductoDAO
 
 
 class CatalogoService:

@@ -1,5 +1,5 @@
 from negocio.entidades import Cliente, NivelLealtad
-from negocio.interfaces import ClienteDAO
+from negocio.daos import ClienteDAO
 
 
 class ClienteService:

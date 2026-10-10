@@ -51,3 +51,12 @@ class Pedido:
     fecha: datetime
     dev_points_redimidos: int = 0
     dev_points_otorgados: int = 0
+
+
+@dataclass
+class Cotizacion:
+    subtotal: int
+    descuento_nivel: int
+    descuento_devpoints: int
+    total: int
+    devpoints_a_ganar: int

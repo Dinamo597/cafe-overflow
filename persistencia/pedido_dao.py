@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Optional
 
 from negocio.entidades import EstadoPedido, ItemPedido, Pedido
-from negocio.interfaces import PedidoDAO
+from negocio.daos import PedidoDAO
 
 
 class PedidoDAOSQLite(PedidoDAO):
@@ -76,3 +76,18 @@ class PedidoDAOSQLite(PedidoDAO):
             "UPDATE pedidos SET estado = ? WHERE id = ?", (estado.value, pedido_id)
         )
         self.conexion.commit()
+
+    def listar_por_cliente(self, cliente_id: int) -> list[Pedido]:
+        filas = self.conexion.execute(
+            "SELECT * FROM pedidos WHERE cliente_id = ? ORDER BY fecha", (cliente_id,)
+        ).fetchall()
+        return [self._mapear(f) for f in filas]
+
+    def listar(self, estado: Optional[EstadoPedido] = None) -> list[Pedido]:
+        if estado is None:
+            filas = self.conexion.execute("SELECT * FROM pedidos ORDER BY fecha").fetchall()
+        else:
+            filas = self.conexion.execute(
+                "SELECT * FROM pedidos WHERE estado = ? ORDER BY fecha", (estado.value,)
+            ).fetchall()
+        return [self._mapear(f) for f in filas]

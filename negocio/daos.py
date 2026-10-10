@@ -38,3 +38,9 @@ class PedidoDAO(ABC):
 
     @abstractmethod
     def actualizar_estado(self, pedido_id: int, estado: EstadoPedido) -> None: ...
+
+    @abstractmethod
+    def listar_por_cliente(self, cliente_id: int) -> list[Pedido]: ...
+
+    @abstractmethod
+    def listar(self, estado: Optional[EstadoPedido] = None) -> list[Pedido]: ...

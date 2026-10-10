@@ -1,8 +1,8 @@
 from datetime import datetime
 from typing import Optional
 
+from negocio.daos import ClienteDAO, PedidoDAO, ProductoDAO
 from negocio.entidades import Cliente, EstadoPedido, Pedido, Producto
-from negocio.interfaces import ClienteDAO, PedidoDAO, ProductoDAO
 
 
 class ProductoDAOMemoria(ProductoDAO):
@@ -59,3 +59,11 @@ class PedidoDAOMemoria(PedidoDAO):
 
     def actualizar_estado(self, pedido_id: int, estado: EstadoPedido) -> None:
         self._pedidos[pedido_id].estado = estado
+
+    def listar_por_cliente(self, cliente_id: int) -> list[Pedido]:
+        return [p for p in self._pedidos.values() if p.cliente_id == cliente_id]
+
+    def listar(self, estado: Optional[EstadoPedido] = None) -> list[Pedido]:
+        if estado is None:
+            return list(self._pedidos.values())
+        return [p for p in self._pedidos.values() if p.estado == estado]

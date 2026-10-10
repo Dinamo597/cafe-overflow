@@ -17,13 +17,13 @@ def test_descuento_senior():
     assert servicio.calcular_descuento(NivelLealtad.SENIOR, 100_000) == 15_000
 
 
-def test_redondeo_hacia_arriba_en_medio_peso():
+def test_descuento_trunca_decimales_hacia_abajo():
     servicio = DescuentoService()
     assert servicio.calcular_descuento(NivelLealtad.JUNIOR, 12_345) == 617
 
 
-def test_redondeo_no_genera_decimales():
+def test_descuento_no_redondea_hacia_arriba():
     servicio = DescuentoService()
     descuento = servicio.calcular_descuento(NivelLealtad.SENIOR, 7_777)
     assert isinstance(descuento, int)
-    assert descuento == 1_167
+    assert descuento == 1_166

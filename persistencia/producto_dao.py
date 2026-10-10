@@ -2,7 +2,7 @@ import sqlite3
 from typing import Optional
 
 from negocio.entidades import Producto
-from negocio.interfaces import ProductoDAO
+from negocio.daos import ProductoDAO
 
 
 class ProductoDAOSQLite(ProductoDAO):
