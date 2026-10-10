@@ -99,7 +99,10 @@ class PedidoDAO(ABC):
 
 ## Servicios (negocio)
 
-`listar_menu`, `crear_cliente`, `cotizar`, `crear_pedido`, `pagar_pedido`, `avanzar_estado`.
+`listar_menu`, `crear_cliente`, `obtener_cliente`, `cotizar`, `crear_pedido`, `pagar_pedido`, `avanzar_estado`, `listar_pedidos`.
+
+- `obtener_cliente(cliente_id) -> Optional[Cliente]`: alimenta `GET /api/clientes/{id}`.
+- `listar_pedidos(cliente_id) -> list[Pedido]`: alimenta `GET /api/pedidos?cliente_id=` (usa `PedidoDAO.listar_por_cliente`).
 
 ## Endpoints (api)
 
@@ -107,12 +110,12 @@ class PedidoDAO(ABC):
 |---|---|---|
 | GET | `/api/productos` | `listar_menu` |
 | POST | `/api/clientes` | `crear_cliente` |
-| GET | `/api/clientes/{id}` | consulta de cliente |
+| GET | `/api/clientes/{id}` | `obtener_cliente` |
 | POST | `/api/pedidos/cotizar` | `cotizar` |
 | POST | `/api/pedidos` | `crear_pedido` |
 | POST | `/api/pedidos/{id}/pagar` | `pagar_pedido` |
 | POST | `/api/pedidos/{id}/estado` | `avanzar_estado` |
-| GET | `/api/pedidos?cliente_id=` | pedidos del cliente |
+| GET | `/api/pedidos?cliente_id=` | `listar_pedidos` |
 
 ### Errores
 
