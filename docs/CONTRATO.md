@@ -99,29 +99,59 @@ class PedidoDAO(ABC):
 
 ## Servicios (negocio)
 
-`listar_menu`, `crear_cliente`, `obtener_cliente`, `cotizar`, `crear_pedido`, `pagar_pedido`, `avanzar_estado`, `listar_pedidos`.
+`PedidoService` devuelve **entidades**, nunca JSON. Firmas (las implementa hoy `api/servicio_falso.py`):
 
-- `obtener_cliente(cliente_id) -> Optional[Cliente]`: alimenta `GET /api/clientes/{id}`.
-- `listar_pedidos(cliente_id) -> list[Pedido]`: alimenta `GET /api/pedidos?cliente_id=` (usa `PedidoDAO.listar_por_cliente`).
+```python
+listar_menu() -> list[Producto]
+crear_cliente(nombre: str, correo: str) -> Cliente
+obtener_cliente(cliente_id: int) -> Optional[Cliente]
+cotizar(cliente_id: int, items: list[ItemPedido], devpoints_a_redimir: int = 0) -> Cotizacion
+crear_pedido(cliente_id: int, items: list[ItemPedido], devpoints_a_redimir: int = 0) -> Pedido
+pagar_pedido(pedido_id: int) -> Pedido            # Pendiente de pago -> En Preparación (usa PasarelaPago)
+avanzar_estado(pedido_id: int) -> Pedido          # En Preparación -> Listo -> Entregado
+listar_pedidos(cliente_id: int) -> list[Pedido]   # GET /api/pedidos?cliente_id=
+listar_todos(estado: Optional[EstadoPedido] = None) -> list[Pedido]   # GET /api/pedidos?estado= (personal)
+```
 
-`PedidoService` devuelve **entidades**, nunca JSON. La capa `api` es la que convierte a JSON, incluidos `Enum` (-> `.value`) y `datetime` (-> `isoformat()`).
+- `Cotizacion(subtotal, descuento_nivel, descuento_devpoints, total, devpoints_a_ganar)` está en `negocio/entidades.py`. **Propuesta pendiente de aprobar por Persona A.**
+- `NoEncontrado(ErrorNegocio)` (cliente, producto o pedido inexistente) está en `negocio/excepciones.py`. **Propuesta pendiente de aprobar por Persona A.**
+- `listar_todos` es un método adicional propuesto para la vista del personal (usa `PedidoDAO.listar`). **Pendiente de aprobar por Persona A.**
+- Los DevPoints a redimir se descuentan del cliente al crear el pedido; el stock, también.
+- `cotizar` valida stock y DevPoints igual que `crear_pedido`, pero no modifica nada.
+- `avanzar_estado` sobre un pedido sin pagar o ya entregado lanza `ErrorNegocio` (-> 400).
+- Al pasar a Entregado: se suma el total a `monto_acumulado`, se ganan `total // 20000` DevPoints y se evalúa el ascenso.
+
+La capa `api` convierte `Enum` (-> `.value`) y `datetime` (-> `isoformat()`) a JSON.
 
 ## Endpoints (api)
 
-| Método | Ruta | Servicio |
-|---|---|---|
-| GET | `/api/productos` | `listar_menu` |
-| POST | `/api/clientes` | `crear_cliente` |
-| GET | `/api/clientes/{id}` | `obtener_cliente` |
-| POST | `/api/pedidos/cotizar` | `cotizar` |
-| POST | `/api/pedidos` | `crear_pedido` |
-| POST | `/api/pedidos/{id}/pagar` | `pagar_pedido` |
-| POST | `/api/pedidos/{id}/estado` | `avanzar_estado` |
-| GET | `/api/pedidos?cliente_id=` | `listar_pedidos` |
+| Método | Ruta | Servicio | Éxito |
+|---|---|---|---|
+| GET | `/api/productos` | `listar_menu` | 200 |
+| POST | `/api/clientes` | `crear_cliente` | 201 |
+| GET | `/api/clientes/{id}` | `obtener_cliente` | 200 / 404 |
+| POST | `/api/pedidos/cotizar` | `cotizar` | 200 |
+| POST | `/api/pedidos` | `crear_pedido` | 201 |
+| POST | `/api/pedidos/{id}/pagar` | `pagar_pedido` | 200 |
+| POST | `/api/pedidos/{id}/estado` | `avanzar_estado` | 200 |
+| GET | `/api/pedidos?cliente_id=` | `listar_pedidos` | 200 |
+| GET | `/api/pedidos?estado=` (o sin filtro) | `listar_todos` | 200 |
+
+Cuerpos de entrada:
+
+- `POST /api/clientes`: `{"nombre": str, "correo": str}`
+- `POST /api/pedidos/cotizar` y `POST /api/pedidos`: `{"cliente_id": int, "items": [{"producto_id": int, "cantidad": int >= 1}], "devpoints_a_redimir": int >= 0 (opcional)}`
+- `/pagar` y `/estado`: sin cuerpo.
+- `GET /api/pedidos`: `cliente_id` y `estado` son excluyentes. `estado` usa el valor del Enum (por ejemplo `En Preparación`).
+
+Fechas en JSON: ISO 8601 en UTC (`2026-10-10T21:42:00+00:00`); la presentación las muestra en hora de Bogotá.
 
 ### Errores
 
-`ErrorNegocio` -> 400 / 409:
+Cuerpo: `{"error": "mensaje"}`.
 
-- 409 Conflicto: `StockInsuficiente`, `PedidoPendienteExistente`
-- 400 Solicitud inválida: `DevPointsInsuficientes` y cualquier otro `ErrorNegocio`
+- 400: JSON inválido, campos faltantes o mal tipados, id no entero, `DevPointsInsuficientes` y cualquier otro `ErrorNegocio`.
+- 404: ruta inexistente o `NoEncontrado`.
+- 405: método no permitido para una ruta existente.
+- 409: `StockInsuficiente`, `PedidoPendienteExistente`.
+- 500: error inesperado.

@@ -15,5 +15,9 @@
 
 ## Persona B (api + presentation)
 - [x] api/: GET /api/productos con servicio falso
-- [ ] API (`http.server`)
-- [ ] Presentation (Node + HTML/JS)
+- [x] api/: todos los endpoints del contrato (clientes, cotizar, pedidos, pagar, estado, listados) y mapeo de errores
+- [x] api/servicio_falso.py completo en memoria
+- [x] presentation/: servidor Node con proxy a /api/* y vistas (menú, cuenta, carrito/cotización, pedidos, personal)
+- [x] Pruebas automáticas de la API (`tests/`)
+- [x] Diagramas C1 y C2 (`docs/c4/`)
+- [x] README

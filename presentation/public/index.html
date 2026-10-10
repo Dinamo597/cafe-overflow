@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Café Overflow</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%98%95%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="barra">
+    <a class="marca" href="#/menu"><span class="prompt">&gt;</span> cafe_overflow<span class="cursor">_</span></a>
+    <nav>
+      <a href="#/menu" data-vista="menu">menu</a>
+      <a href="#/carrito" data-vista="carrito">carrito <span id="badge" class="badge" hidden>0</span></a>
+      <a href="#/pedidos" data-vista="pedidos">mis_pedidos</a>
+      <a href="#/cliente" data-vista="cliente">cuenta</a>
+      <a href="#/personal" data-vista="personal">personal</a>
+    </nav>
+  </header>
+  <main id="app"></main>
+  <div id="toasts" aria-live="polite"></div>
+  <footer class="pie">// Café Overflow · Arquitectura de Software · N-Tier</footer>
+  <script src="/app.js"></script>
+</body>
+</html>

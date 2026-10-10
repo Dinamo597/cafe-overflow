@@ -49,3 +49,12 @@ class Pedido:
     estado: EstadoPedido = EstadoPedido.PENDIENTE_PAGO
     total: int = 0  # COP
     fecha: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+@dataclass
+class Cotizacion:
+    subtotal: int
+    descuento_nivel: int
+    descuento_devpoints: int
+    total: int
+    devpoints_a_ganar: int

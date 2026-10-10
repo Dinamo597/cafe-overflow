@@ -12,3 +12,7 @@ class PedidoPendienteExistente(ErrorNegocio):
 
 class DevPointsInsuficientes(ErrorNegocio):
     pass
+
+
+class NoEncontrado(ErrorNegocio):
+    """El cliente, producto o pedido referenciado no existe."""
