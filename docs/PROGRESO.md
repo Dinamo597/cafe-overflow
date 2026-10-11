@@ -1,23 +1,25 @@
-# Progreso
-
-## Fase 0 — Contrato (Persona B)
-- [x] Estructura de carpetas y .gitignore
-- [x] Entidades y excepciones
-- [x] docs/CONTRATO.md
-- [x] Interfaces DAO (`negocio/daos.py`)
-- [x] PasarelaPago / PasarelaSimulada (`negocio/pasarela.py`)
+# Progreso — Café Overflow
 
 ## Persona A (negocio + persistencia)
-- [x] PasarelaSimulada
-- [ ] Servicios (`listar_menu`, `crear_cliente`, `cotizar`, `crear_pedido`, `pagar_pedido`, `avanzar_estado`)
-- [ ] DAOs sobre sqlite3
-- [ ] `obtener_cliente` y `listar_pedidos` en PedidoService
+
+- [x] `entidades.py`, `excepciones.py`, `daos.py`, `pasarela.py`
+- [x] `descuento_service.py`, `fidelidad_service.py`, `pedido_service.py`, `catalogo_service.py`, `cliente_service.py`
+- [x] `persistencia/` sobre SQLite (schema, seed, DAOs)
+- [x] Pruebas unitarias con DAOs en memoria
+- [x] `docs/c4/c3-backend.svg`
 
 ## Persona B (api + presentation)
-- [x] api/: GET /api/productos con servicio falso
-- [x] api/: todos los endpoints del contrato (clientes, cotizar, pedidos, pagar, estado, listados) y mapeo de errores
-- [x] api/servicio_falso.py completo en memoria
-- [x] presentation/: servidor Node con proxy a /api/* y vistas (menú, cuenta, carrito/cotización, pedidos, personal)
-- [x] Pruebas automáticas de la API (`tests/`)
-- [x] Diagramas C1 y C2 (`docs/c4/`)
+
+- [x] `api/`: todos los endpoints del contrato y mapeo de errores
+- [x] `api/servicio_real.py`: fachada sobre los servicios de negocio y SQLite
+- [x] `presentation/`: servidor Node con proxy a `/api/*` y vistas (menú, cuenta, carrito/cotización, pedidos, personal)
+- [x] Pruebas de la API (`tests/test_api.py`) contra el servicio real con SQLite en memoria
+- [x] `docs/c4`: C1 y C2
 - [x] README
+
+## Integración
+
+- [x] Rutas y formato JSON acordados (ver `docs/CONTRATO.md`)
+- [x] Integración api + negocio + persistencia
+- [ ] Pull request de `feature/persona-a` y `feature/persona-b` hacia `main`
+- [ ] Revisión cruzada de diagramas (C1/C2 de B con C3 de A)

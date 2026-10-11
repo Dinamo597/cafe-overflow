@@ -8,10 +8,10 @@ from enum import Enum
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from api.servicio_falso import PedidoServiceFalso
-from negocio.entidades import EstadoPedido, ItemPedido
+from api.servicio_real import crear_servicio
+from negocio.entidades import EstadoPedido
 from negocio.excepciones import (
-    ErrorNegocio, NoEncontrado, PedidoPendienteExistente, StockInsuficiente,
+    ErrorNegocio, NoEncontrado, PagoRechazado, PedidoPendienteExistente, StockInsuficiente,
 )
 
 MAX_CUERPO = 1_000_000
@@ -33,6 +33,8 @@ def _a_json(obj):
 def _codigo_http(error: ErrorNegocio) -> int:
     if isinstance(error, NoEncontrado):
         return 404
+    if isinstance(error, PagoRechazado):
+        return 402
     if isinstance(error, (StockInsuficiente, PedidoPendienteExistente)):
         return 409
     return 400
@@ -63,10 +65,10 @@ def _datos_pedido(datos: dict):
     for crudo in crudos:
         if not isinstance(crudo, dict):
             raise ErrorSolicitud("Cada ítem debe ser un objeto")
-        items.append(ItemPedido(
-            producto_id=_entero(crudo.get("producto_id"), "producto_id"),
-            cantidad=_entero(crudo.get("cantidad"), "cantidad", minimo=1),
-        ))
+        items.append({
+            "producto_id": _entero(crudo.get("producto_id"), "producto_id"),
+            "cantidad": _entero(crudo.get("cantidad"), "cantidad", minimo=1),
+        })
     devpoints = _entero(datos.get("devpoints_a_redimir", 0), "devpoints_a_redimir", minimo=0)
     return cliente_id, items, devpoints
 
@@ -193,7 +195,7 @@ def crear_handler(servicio, silencioso: bool = False):
 
 
 if __name__ == "__main__":
-    servicio = PedidoServiceFalso()  # el día que exista el real, se cambia esta línea
+    servicio = crear_servicio(os.environ.get("DB_PATH", "cafe_overflow.db"))
     puerto = int(os.environ.get("API_PORT", 8000))
     print(f"API en http://localhost:{puerto}")
     HTTPServer(("localhost", puerto), crear_handler(servicio)).serve_forever()

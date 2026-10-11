@@ -1,34 +1,33 @@
-# Café Overflow
+# Café Overflow — Dev & Coffee Lounge
 
-Taller N-Tier (UNAB, Arquitectura de Software): sistema de pedidos de una cafetería con niveles de fidelidad y DevPoints.
+Taller N-Tier (UNAB, Arquitectura de Software): sistema de pedidos en línea de un café temático, con niveles de fidelidad y DevPoints, en 3 capas con separación estricta de responsabilidades.
 
-## Estructura por capas
+## Estructura
 
 ```
 presentation/   Node (http) + HTML/CSS/JS plano. Renderiza y valida sintaxis; no calcula nada.
   server.js       sirve public/ y reenvía /api/* a la API
   public/         index.html, styles.css, app.js
-api/            Python, http.server, JSON. Traduce HTTP/JSON <-> servicio. Sin reglas de negocio.
+api/            Python, http.server, JSON. Traduce HTTP/JSON <-> servicios. Sin reglas de negocio.
   servidor.py     handler y rutas (crear_handler(servicio))
-  servicio_falso.py  PedidoServiceFalso: servicio en memoria para desarrollar y probar
-negocio/        Python puro (sin HTML/JSON/SQL): entidades, excepciones, interfaces DAO, pasarela.
-persistencia/   Python, DAOs sobre sqlite3.
-tests/          Pruebas automáticas de la API (unittest).
+  servicio_real.py  fachada que arma los servicios de negocio sobre SQLite
+negocio/        Python puro (sin HTML/JSON/SQL): entidades, excepciones, servicios, interfaces DAO, pasarela.
+persistencia/   DAOs sobre SQLite (schema.sql, seed.py).
+tests/          Pruebas (API contra el servicio real; negocio con DAOs en memoria).
 docs/           CONTRATO.md, PROGRESO.md y diagramas C4 (docs/c4/).
 ```
 
-Dependencias: presentation -> api -> negocio -> persistencia (negocio define las interfaces DAO; persistencia las implementa).
+Dependencias: presentation -> api -> negocio -> persistencia (negocio define las interfaces DAO; persistencia las implementa). Todos los montos son pesos enteros.
 
 ## Requisitos
 
 - Python 3.11+
 - Node.js 18+
-
-No hay dependencias externas (ni `pip install` ni `npm install`).
+- `pytest` solo para las pruebas de negocio: `pip install -r requirements.txt`
 
 ## Ejecutar
 
-Desde la raíz del repositorio, en dos terminales:
+Desde la raíz, en dos terminales:
 
 ```bash
 python -m api.servidor
@@ -38,30 +37,24 @@ python -m api.servidor
 node presentation/server.js
 ```
 
-Abre http://localhost:3000. La API queda en http://localhost:8000 (los endpoints están en `docs/CONTRATO.md`).
+Abre http://localhost:3000. La API queda en http://localhost:8000 y guarda los datos en `cafe_overflow.db` (se crea y siembra sola).
 
-Variables opcionales: `API_PORT` (puerto de la API), `PORT` (puerto de presentación) y `API_URL` (a dónde reenvía Node, por defecto `http://127.0.0.1:8000`).
+Variables opcionales: `API_PORT`, `DB_PATH` (archivo SQLite), `PORT` (presentación) y `API_URL` (a dónde reenvía Node, por defecto `http://127.0.0.1:8000`).
 
 ## Pruebas
 
 ```bash
-python -m unittest discover -s tests -t .
+python -m pytest tests -q
 ```
 
-Levantan la API en un puerto libre y cubren cada endpoint, los códigos de error y el recorrido completo (cliente, cotizar, pedido, pago, preparación, listo, entregado, DevPoints y ascenso).
+`tests/test_api.py` levanta la API en un puerto libre sobre SQLite en memoria y cubre cada endpoint, los códigos de error y el recorrido completo (cliente, cotizar, pedido, pago, preparación, listo, entregado, DevPoints y ascenso). El resto prueba la capa de negocio con DAOs en memoria (`tests/fakes.py`).
 
-## Cambiar el servicio falso por el real
+## Capas
 
-`api/servidor.py` recibe el servicio desde fuera. En el bloque final del archivo hay una sola línea:
+- **negocio**: `descuento_service` (5/10/15 % por nivel), `fidelidad_service` (ascenso a $500.000 y $1.500.000; DevPoints: 1 por cada $20.000, cada uno vale $200), `pedido_service` (cotizar, crear, pagar, avanzar estado, listar), `catalogo_service`, `cliente_service`.
+- **persistencia**: `producto_dao`, `cliente_dao`, `pedido_dao` sobre SQLite.
+- **api**: contrato de endpoints y errores en `docs/CONTRATO.md`.
 
-```python
-servicio = PedidoServiceFalso()  # el día que exista el real, se cambia esta línea
-```
+## Decisiones
 
-Se reemplaza por el `PedidoService` real, construido con sus DAOs y la pasarela, por ejemplo:
-
-```python
-servicio = PedidoService(ProductoDAOSqlite(...), ClienteDAOSqlite(...), PedidoDAOSqlite(...), PasarelaSimulada())
-```
-
-El `PedidoService` real debe tener los mismos métodos que `PedidoServiceFalso` (ver `docs/CONTRATO.md`) y devolver entidades de `negocio/entidades.py`. Para comprobar la integración, las pruebas de `tests/` se pueden correr contra el servicio real cambiando la construcción en `BaseApi.setUp`.
+Ver `docs/CONTRATO.md` (compra completada al entregar, stock al crear el pedido, orden de cálculo del total, etc.).

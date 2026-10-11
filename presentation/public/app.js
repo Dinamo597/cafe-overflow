@@ -126,7 +126,7 @@ async function vistaCarrito() {
   const porId = new Map(productos.map((p) => [p.id, p]));
   carrito = carrito.filter((i) => porId.has(i.producto_id));
   guardarCarrito();
-  let devpoints = 0;
+  let dev_points = 0;
   let cotizacion = null;
 
   const zonaCot = el('div');
@@ -153,7 +153,7 @@ async function vistaCarrito() {
         }, 'confirmar pedido'))));
   };
 
-  const cuerpoPedido = () => ({ cliente_id: cliente.id, items: carrito, devpoints_a_redimir: devpoints });
+  const cuerpoPedido = () => ({ cliente_id: cliente.id, items: carrito, devpoints_a_redimir: dev_points });
 
   const dibujar = () => {
     cotizacion = null;
@@ -168,10 +168,10 @@ async function vistaCarrito() {
       return;
     }
     const campoDev = el('input', {
-      type: 'number', min: '0', step: '1', value: String(devpoints), id: 'devpoints',
+      type: 'number', min: '0', step: '1', value: String(dev_points), id: 'dev_points',
       oninput: (ev) => {
         const n = Number(ev.target.value);
-        devpoints = Number.isInteger(n) && n >= 0 ? n : 0;
+        dev_points = Number.isInteger(n) && n >= 0 ? n : 0;
         ev.target.classList.toggle('invalido', !(Number.isInteger(n) && n >= 0));
         cotizacion = null;
         pintarCotizacion();
@@ -180,7 +180,7 @@ async function vistaCarrito() {
     montar(
       el('h1', {}, 'carrito'),
       el('p', { class: 'sub' }, `Cliente: ${cliente.nombre} · nivel `, insigniaNivel(cliente.nivel),
-        ` · ${cliente.devpoints} DevPoints`),
+        ` · ${cliente.dev_points} DevPoints`),
       el('div', { class: 'caja' }, carrito.map((item) => {
         const p = porId.get(item.producto_id);
         return el('div', { class: 'fila' },
@@ -192,7 +192,7 @@ async function vistaCarrito() {
             el('button', { class: 'mini peligro', 'aria-label': 'quitar', onclick: () => cambiar(item, -item.cantidad) }, '✕')));
       })),
       el('div', { class: 'caja' },
-        el('label', { for: 'devpoints' }, 'DevPoints a redimir (opcional)', campoDev)),
+        el('label', { for: 'dev_points' }, 'DevPoints a redimir (opcional)', campoDev)),
       el('div', { class: 'acciones' },
         el('button', {
           class: 'azul',
@@ -323,7 +323,7 @@ async function vistaCliente() {
           el('div', {}, el('b', {}, cliente.nombre), el('div', { class: 'meta' }, `${cliente.correo} · id ${cliente.id}`)),
           insigniaNivel(cliente.nivel)),
         el('div', { class: 'datos' },
-          el('div', { class: 'dato' }, el('b', {}, cliente.devpoints), el('span', {}, 'DevPoints')),
+          el('div', { class: 'dato' }, el('b', {}, cliente.dev_points), el('span', {}, 'DevPoints')),
           el('div', { class: 'dato' }, el('b', {}, COP.format(cliente.monto_acumulado)), el('span', {}, 'acumulado en compras')),
           el('div', { class: 'dato' }, el('b', {}, cliente.nivel), el('span', {}, 'nivel actual'))),
         el('div', { class: 'acciones' }, el('button', {

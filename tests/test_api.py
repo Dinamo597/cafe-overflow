@@ -5,16 +5,26 @@ import urllib.error
 import urllib.request
 from http.server import HTTPServer
 
-from api.servicio_falso import PedidoServiceFalso
+from api.servicio_real import crear_servicio
 from api.servidor import crear_handler
+from negocio.pasarela import PasarelaSimulada
 
 
 class BaseApi(unittest.TestCase):
+    pasarela_aprueba = True
+
     def setUp(self):
-        self.servicio = PedidoServiceFalso()
+        self.servicio = crear_servicio(":memory:", PasarelaSimulada(aprueba=self.pasarela_aprueba))
         self.servidor = HTTPServer(("127.0.0.1", 0), crear_handler(self.servicio, silencioso=True))
         self.base = f"http://127.0.0.1:{self.servidor.server_address[1]}"
         threading.Thread(target=self.servidor.serve_forever, daemon=True).start()
+
+    def ajustar_cliente(self, cliente_id, **campos):
+        """Fija datos del cliente directamente en la BD de prueba (p. ej. monto acumulado)."""
+        cliente = self.servicio._clientes.obtener(cliente_id)
+        for campo, valor in campos.items():
+            setattr(cliente, campo, valor)
+        self.servicio._clientes.actualizar(cliente)
 
     def tearDown(self):
         self.servidor.shutdown()
@@ -57,7 +67,7 @@ class TestProductosYClientes(BaseApi):
     def test_crear_y_obtener_cliente(self):
         codigo, c = self.pedir("POST", "/api/clientes", {"nombre": " Ana ", "correo": "ana@x.co"})
         self.assertEqual(codigo, 201)
-        self.assertEqual((c["nombre"], c["nivel"], c["devpoints"], c["monto_acumulado"]),
+        self.assertEqual((c["nombre"], c["nivel"], c["dev_points"], c["monto_acumulado"]),
                          ("Ana", "Junior", 0, 0))
         codigo, c2 = self.pedir("GET", f"/api/clientes/{c['id']}")
         self.assertEqual((codigo, c2), (200, c))
@@ -85,8 +95,8 @@ class TestCotizar(BaseApi):
         c = self.cliente()
         codigo, cot = self.cotizar(c["id"], [{"producto_id": 2, "cantidad": 2}])
         self.assertEqual(codigo, 200)
-        self.assertEqual(cot, {"subtotal": 36000, "descuento_nivel": 1800,
-                               "descuento_devpoints": 0, "total": 34200, "devpoints_a_ganar": 1})
+        self.assertEqual(cot, {"subtotal": 50000, "descuento_nivel": 2500,
+                               "descuento_devpoints": 0, "total": 47500, "devpoints_a_ganar": 2})
 
     def test_errores(self):
         c = self.cliente()
@@ -104,11 +114,11 @@ class TestCotizar(BaseApi):
     def test_cotizar_no_descuenta_stock(self):
         c = self.cliente()
         self.cotizar(c["id"], [{"producto_id": 1, "cantidad": 5}])
-        self.assertEqual(self.pedir("GET", "/api/productos")[1][0]["stock"], 20)
+        self.assertEqual(self.pedir("GET", "/api/productos")[1][0]["stock"], 50)
 
     def test_total_minimo_cero(self):
         c = self.cliente()
-        self.servicio._clientes[c["id"]].devpoints = 1000
+        self.ajustar_cliente(c["id"], dev_points=1000)
         cot = self.cotizar(c["id"], [{"producto_id": 3, "cantidad": 1}], 1000)[1]
         self.assertEqual((cot["total"], cot["devpoints_a_ganar"]), (0, 0))
 
@@ -118,13 +128,13 @@ class TestPedidos(BaseApi):
         c = self.cliente()
         codigo, p = self.pedido(c["id"], [{"producto_id": 1, "cantidad": 3}])
         self.assertEqual(codigo, 201)
-        self.assertEqual((p["estado"], p["total"]), ("Pendiente de pago", 17100))
+        self.assertEqual((p["estado"], p["total"]), ("Pendiente de pago", 22800))
         self.assertTrue(p["fecha"].endswith("+00:00"))
-        self.assertEqual(self.pedir("GET", "/api/productos")[1][0]["stock"], 17)
+        self.assertEqual(self.pedir("GET", "/api/productos")[1][0]["stock"], 47)
 
     def test_stock_insuficiente_409(self):
         c = self.cliente()
-        codigo, cuerpo = self.pedido(c["id"], [{"producto_id": 2, "cantidad": 11}])
+        codigo, cuerpo = self.pedido(c["id"], [{"producto_id": 2, "cantidad": 31}])
         self.assertEqual(codigo, 409)
         self.assertIn("error", cuerpo)
 
@@ -142,12 +152,12 @@ class TestPedidos(BaseApi):
         c = self.cliente()
         p = self.pedido(c["id"])[1]
         ruta = f"/api/pedidos/{p['id']}"
-        self.assertEqual(self.pedir("POST", ruta + "/estado")[0], 400)   # sin pagar
+        self.assertEqual(self.pedir("POST", ruta + "/estado")[1]["estado"], "Pendiente de pago")   # sin pagar no avanza
         self.assertEqual(self.pedir("POST", ruta + "/pagar")[1]["estado"], "En Preparación")
         self.assertEqual(self.pedir("POST", ruta + "/pagar")[0], 400)    # ya pagado
         self.assertEqual(self.pedir("POST", ruta + "/estado")[1]["estado"], "Listo")
         self.assertEqual(self.pedir("POST", ruta + "/estado")[1]["estado"], "Entregado")
-        self.assertEqual(self.pedir("POST", ruta + "/estado")[0], 400)   # ya entregado
+        self.assertEqual(self.pedir("POST", ruta + "/estado")[1]["estado"], "Entregado")   # ya entregado no cambia
 
     def test_pedido_inexistente_y_id_invalido(self):
         self.assertEqual(self.pedir("POST", "/api/pedidos/99/pagar")[0], 404)
@@ -170,46 +180,61 @@ class TestPedidos(BaseApi):
         self.assertEqual(self.pedir("GET", "/api/pedidos?cliente_id=1&estado=Listo")[0], 400)
 
 
+class TestPagoRechazado(BaseApi):
+    pasarela_aprueba = False
+
+    def test_pago_rechazado_402(self):
+        c = self.cliente()
+        p = self.pedido(c["id"])[1]
+        codigo, cuerpo = self.pedir("POST", f"/api/pedidos/{p['id']}/pagar")
+        self.assertEqual(codigo, 402)
+        self.assertIn("error", cuerpo)
+        self.assertEqual(self.pedir("GET", f"/api/pedidos?cliente_id={c['id']}")[1][0]["estado"], "Pendiente de pago")
+
+
 class TestRecorridoCompleto(BaseApi):
     def test_recorrido_con_devpoints(self):
         cid = self.cliente()["id"]
-        # 10 combos = 180000; Junior 5 % -> 171000; gana 8 DevPoints al entregar
-        self.assertEqual(self.cotizar(cid, [{"producto_id": 2, "cantidad": 10}])[1]["total"], 171000)
+        # 10 combos = 250000; Junior 5 % -> 237500; gana 11 DevPoints al entregar
+        self.assertEqual(self.cotizar(cid, [{"producto_id": 2, "cantidad": 10}])[1]["total"], 237500)
         p = self.pedido(cid, [{"producto_id": 2, "cantidad": 10}])[1]
-        self.assertEqual(p["total"], 171000)
-        self.assertEqual(self.pedir("GET", "/api/productos")[1][1]["stock"], 0)
+        self.assertEqual(p["total"], 237500)
+        self.assertEqual(self.pedir("GET", "/api/productos")[1][1]["stock"], 20)
         self.assertEqual(self.entregar(p["id"])["estado"], "Entregado")
         yo = self.pedir("GET", f"/api/clientes/{cid}")[1]
-        self.assertEqual((yo["monto_acumulado"], yo["devpoints"], yo["nivel"]), (171000, 8, "Junior"))
+        self.assertEqual((yo["monto_acumulado"], yo["dev_points"], yo["nivel"]), (237500, 11, "Junior"))
 
-        # Redime los 8 DevPoints = $1.600 de descuento directo
-        cot = self.cotizar(cid, [{"producto_id": 1, "cantidad": 20}], 8)[1]
-        self.assertEqual(cot, {"subtotal": 120000, "descuento_nivel": 6000,
-                               "descuento_devpoints": 1600, "total": 112400, "devpoints_a_ganar": 5})
-        p2 = self.pedido(cid, [{"producto_id": 1, "cantidad": 20}], 8)[1]
-        self.assertEqual(p2["total"], 112400)
-        self.assertEqual(self.pedir("GET", f"/api/clientes/{cid}")[1]["devpoints"], 0)
-        self.entregar(p2["id"])
+        # Redime los 11 DevPoints = $2.200 de descuento directo
+        items = [{"producto_id": 1, "cantidad": 20}]
+        cot = self.cotizar(cid, items, 11)[1]
+        self.assertEqual(cot, {"subtotal": 160000, "descuento_nivel": 8000,
+                               "descuento_devpoints": 2200, "total": 149800, "devpoints_a_ganar": 7})
+        p2 = self.pedido(cid, items, 11)[1]
+        self.assertEqual(p2["total"], 149800)
+        self.pedir("POST", f"/api/pedidos/{p2['id']}/pagar")   # los puntos se descuentan al pagar
+        self.assertEqual(self.pedir("GET", f"/api/clientes/{cid}")[1]["dev_points"], 0)
+        self.pedir("POST", f"/api/pedidos/{p2['id']}/estado")
+        self.pedir("POST", f"/api/pedidos/{p2['id']}/estado")
         yo = self.pedir("GET", f"/api/clientes/{cid}")[1]
-        self.assertEqual((yo["monto_acumulado"], yo["devpoints"]), (283400, 5))
+        self.assertEqual((yo["monto_acumulado"], yo["dev_points"]), (387300, 7))
         self.assertEqual(len(self.pedir("GET", f"/api/pedidos?cliente_id={cid}")[1]), 2)
         self.assertEqual(len(self.pedir("GET", "/api/pedidos?estado=Entregado")[1]), 2)
 
     def test_ascenso_a_mid_y_senior(self):
         cid = self.cliente()["id"]
         item = [{"producto_id": 1, "cantidad": 1}]
-        self.servicio._clientes[cid].monto_acumulado = 499000
+        self.ajustar_cliente(cid, monto_acumulado=499000)
         p = self.pedido(cid, item)[1]
         self.assertEqual(self.pedir("GET", f"/api/clientes/{cid}")[1]["nivel"], "Junior")
         self.entregar(p["id"])
         self.assertEqual(self.pedir("GET", f"/api/clientes/{cid}")[1]["nivel"], "Mid")
-        # el descuento nuevo aplica desde la siguiente compra: 6000 - 10 %
-        self.assertEqual(self.cotizar(cid, item)[1]["descuento_nivel"], 600)
+        # el descuento nuevo aplica desde la siguiente compra: 8000 - 10 %
+        self.assertEqual(self.cotizar(cid, item)[1]["descuento_nivel"], 800)
 
-        self.servicio._clientes[cid].monto_acumulado = 1_495_000
+        self.ajustar_cliente(cid, monto_acumulado=1_495_000)
         self.entregar(self.pedido(cid, item)[1]["id"])
         self.assertEqual(self.pedir("GET", f"/api/clientes/{cid}")[1]["nivel"], "Senior")
-        self.assertEqual(self.cotizar(cid, item)[1]["descuento_nivel"], 900)
+        self.assertEqual(self.cotizar(cid, item)[1]["descuento_nivel"], 1200)
 
 
 if __name__ == "__main__":
